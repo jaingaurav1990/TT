@@ -90,6 +90,10 @@ a tourist spot name that is in turn, a conjunction of two tourist spots' names.
 Note:
 Google API key only allows a limited amount of Google Place Searches per day.
 
+Acknowledgements:
+suffix_tree.py implementation used from https://github.com/kvh/Python-Suffix-Tree
+Author: Ken Van Haren
+
 
 
 
