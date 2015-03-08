@@ -4,6 +4,8 @@ Prerequisites:
     sudo pip install python-google-places
 2. Install NLTK (http://www.nltk.org/install.html)
     sudo pip install nltk
+3. Install geopy
+    sudo pip install geopy
 
 Usage:
 
