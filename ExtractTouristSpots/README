@@ -1,0 +1,95 @@
+Prerequisites:
+
+1. Install python-google-places (https://github.com/slimkrazy/python-google-places)
+    sudo pip install python-google-places
+2. Install NLTK (http://www.nltk.org/install.html)
+    sudo pip install nltk
+
+Usage:
+
+$ python extractTouristSpots.py -h
+usage: extractTouristSpots.py [-h] [-c CITIES] [-f PLANFILE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CITIES, --cities CITIES
+                        Comma separated list of cities relevant to the Travel
+                        Plan
+  -f PLANFILE, --planFile PLANFILE
+                        File holding the travel plan
+
+Test:
+
+Run the following on command line, for example to find all the tourist spots
+of a travel plan relating to Jaipur
+
+$ python extractTouristSpots.py -c Delhi -f input/DelhiTrip.txt
+
+For listing tourist spots of Munnar-Cochin Travel Plan
+$ python extractTouristSpots.py -c Munnar,Cochin -f input/MunnarTrip.txt
+
+Assumption:
+City names (related to the travel plan) are provided as command-line parameters
+to localize the search.
+
+Algorithm:
+Create a limited database, based on the cities provided as arguments on command line.
+(In a production application, we would presumably already have such a pre-processed database).
+To avoid missing matches of lowercase and uppercase alphabets, we maintain all text and toursit
+spot information in uppercase. The limited database is a dictionary, with a city mapped to tourist
+spots in that city.
+
+Tourist spots in a city are inquired using Google Places API (Both text search and nearby search).
+
+Since, a tourist spot such as "Eravikulam National Park" can contain more than 1 word, hash-based
+matching of strings from text (travel plan) becomes tricky. For example, if list of tourist spots
+is stored in a set ("Eravikulam National Park" being one element of the set), then none of the words
+"Eravikulam" or "National" or "Park" would be found in the set. An unappealing solution would be to
+match strings from text by picking up more than a word to create a token. For example, one may first
+create tokens with 2 words (getting "Eravikulam National" and "National Park", none of which is contained
+in the set), then with 3 words at a time, resulting in a match in set.
+
+Since, hash-based matching requires exact matches, we need to create tokens with multiple words, and scan
+the text multiple times (increasing the token size -- in terms of words -- every time). So, instead of saving
+tourist spots of a city in a HashSet, we save them in a trie. This allows O(k) time matching of a single word
+token from travel-plan text with a tourist spot in a particular city (where, k is the number of chars in a token).
+We also create a suffix tree of the whole travel plan (in O(n) time, where n is the number of chars in text) to
+rule out false candidates from the trie. The basic algo. works as follows:
+
+1. Scan the travel plan text, word by word.
+2. For each word, go through the tries of each city that is relevant to travel plan (Munnar, Cochin for example).
+   The tries themselves are obtained in O(1) expected time (using City->TouristSpotTrie Dictionary), and matching
+   word takes at most O(k) time, where, k is the number of chars in word.
+3. If word does not exist as a prefix in any Trie, it is definitely not a tourist spot (as per our database). If
+   it does match a prefix in trie, get all complete strings from the trie that have the current word as prefix.
+   For the word "Eravikulam", this would mean getting say, "Eravikulam National Park" and "Eravikulam Zoo" as
+   candidate strings from the trie (both have "Eravikulam" prefix).
+4. Suppose, that only "Eravikulam Zoo" exists in the text. Either, we can rule out candidate strings by reading the
+   next word and matching it with candidate strings or use a suffix tree based matching for each candidate string.
+   We can rule out (or not) a candidate string in O(k) time, k is the length of string by using the suffix tree of
+   the entire travel plan. Thus, the whole process (of finding if a word corresponds to a tourist spot)
+   still takes only O(k + mk') ~ O(1) time (k and k' are length of word and tourist spot name respectively, m is the
+   number of tourist spots starting with the current word as prefix. Ex: "Delhi Fort" and "Delhi Caves" may be 2 such
+   tourist spots if current word is "Delhi")
+5. Since, each word is matched in O(1) time, scanning through the text to find tourist spots takes O(n) time, where
+   n is the number of words. Almost linear time search. Win win.
+
+Known Limitations:
+This Tourist spot extractor is only as good as the Google Places result. While experimenting, I found that "Bing Local"
+search results are exceptionally better than corresponding Google Places/Search results, however there does not exist
+any clean API to extract that information. So, we make do with what we have. TripAdvisor (paid) API would for example,
+improve the quality of our database by leaps and bounds.
+
+Extremely Unlikely Corner Case:
+Suppose, there are two words X and Y, each of which is a tourist spot. Also, suppose that the word "X Y" is also
+a tourist spot (rare!). Now, assume that the word "X Y" occurs in travel plan text, but neither of X or Y occurs
+independently in the text. In this case, our algorithm would identify "X", "Y" and "X Y" as tourist spots, although
+semantically, "X Y" is the only tourist spot in the travel plan. It would be great if one could come up with
+a tourist spot name that is in turn, a conjunction of two tourist spots' names.
+
+Note:
+Google API key only allows a limited amount of Google Place Searches per day.
+
+
+
+
